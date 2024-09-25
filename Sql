@@ -1,0 +1,43 @@
+ -- Calculate the number of comments per user
+WITH ComCount AS (
+  SELECT user_id, COUNT(user_id) AS Comments_count
+  FROM bigquery-public-data.stackoverflow.comments
+  GROUP BY user_id
+  ),
+-- Calculate the average reputation
+AvgRep AS (
+  SELECT ROUND(AVG(reputation)) AS AvgRepu
+  FROM bigquery-public-data.stackoverflow.users
+)
+-- Showing the requested fields that are not null values
+SELECT 
+    u.id AS User_id, 
+    u.display_name AS User_display_name, 
+    u.reputation AS Reputation,
+    COALESCE(cc.Comments_count, 0) AS Comments_Count,
+    b.tag_based AS Badges
+FROM 
+    bigquery-public-data.stackoverflow.users AS u
+
+LEFT JOIN 
+    ComCount AS cc
+    ON u.id = cc.user_id 
+
+LEFT JOIN 
+    bigquery-public-data.stackoverflow.comments AS c
+    ON u.id = c.user_id
+
+LEFT JOIN 
+    bigquery-public-data.stackoverflow.badges AS b
+    ON u.id = b.user_id
+-- Showing only below-average's reputation users
+WHERE 
+    u.reputation < (SELECT AvgRepu FROM AvgRep) 
+
+GROUP BY 
+    u.id, u.display_name, u.reputation, Comments_Count, b.tag_based 
+-- Showing only the top 10 of those users
+ORDER BY 
+    Reputation DESC,  
+    Comments_Count DESC
+LIMIT 10;
